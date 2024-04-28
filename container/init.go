@@ -35,12 +35,18 @@ func Runcontainerinit() error{
 	    return fmt.Errorf("Runcontainerinit can't get command from pipe")
 	}
 
+    path := os.Getenv("PATH")
+    
+    newPath := path + ":/bin"
+    
+    os.Setenv("PATH", newPath)
+
     path,err:=exec.LookPath(cmdarry[0])
 	if err!=nil{
 	    log.Errorf("can't find exec path: %s %v", cmdarry[0], err)
 	    return err
 	}
-    log.Infof("find path %v",path)
+    log.Infof("find path %s",path)
 
     if err:=syscall.Exec(path,cmdarry,os.Environ());err!=nil{	
 		log.Errorf("syscall exec err: %v", err.Error())
