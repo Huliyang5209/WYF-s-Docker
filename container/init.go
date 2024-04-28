@@ -49,6 +49,7 @@ func Runcontainerinit() error{
 }
 
 func SetUpMount() error{
+    log.Errorf("setupmout is running-------------------------------")
 
 	if err:=syscall.Mount("/","/","",syscall.MS_REC|syscall.MS_PRIVATE,"");err!=nil{
 		return fmt.Errorf("setupmout mount proc err %v",err)
@@ -72,10 +73,15 @@ func SetUpMount() error{
 		return err
 	}
 	syscall.Mount("tmpfs", "/dev", "tempfs", syscall.MS_NOSUID|syscall.MS_STRICTATIME, "mode=755")
+
+	log.Errorf("setupmout is end-------------------------------")
+
 	return nil
 }
 
 func privotRoot(root string) error{
+
+	log.Errorf("privot root is running-------------------------------")
 
    if err:=syscall.Mount(root,root,"bind",syscall.MS_BIND|syscall.MS_REC,"");err!=nil{
 	   return fmt.Errorf("mount root to itselfe err %v",err)
@@ -105,5 +111,7 @@ func privotRoot(root string) error{
 	if err := syscall.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
 		return fmt.Errorf("unmount pivot_root dir err: %v", err)
 	}
+
+	log.Errorf("privot root is end-------------------------------")
 	return os.Remove(pivotDir)
 }
