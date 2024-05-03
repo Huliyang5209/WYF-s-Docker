@@ -34,6 +34,10 @@ var runCommand = cli.Command{
 			Name:  "cpushare",
 			Usage: "cpushare limit",
 		},
+		cli.StringFlag{
+		    Name: "v",
+			Usage: "volume",
+		},
 	},
 	Action: func(context *cli.Context) error {
 
@@ -55,8 +59,10 @@ var runCommand = cli.Command{
 		
 		tty := context.Bool("ti")
 		log.Infof("createTty %v", tty)
+
+		volume := context.String("v")
 		
-		CommandCallbackFunction.Run(tty, cmdArray,resConf)
+		CommandCallbackFunction.Run(tty, cmdArray,resConf,volume)
 		return nil
 	},
 }
