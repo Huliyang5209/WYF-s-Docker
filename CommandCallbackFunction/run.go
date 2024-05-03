@@ -13,7 +13,7 @@ import (
 	
 )
 
-func Run(tty bool, cmdarry []string,res *subsystems.ResourceConfig) {
+func Run(tty bool, cmdarry []string,res *subsystems.ResourceConfig,volume string) {
     
 	
 	pwd,err:=os.Getwd()
@@ -22,12 +22,12 @@ func Run(tty bool, cmdarry []string,res *subsystems.ResourceConfig) {
 		return
 	}
 
-    RunUrl:=pwd+"/"
-	log.Errorf("RunUrl is %s",RunUrl)
+    RootUrl:=pwd+"/"
+	log.Errorf("RunUrl is %s",RootUrl)
 	MntUrl:=pwd+"/mnt/"
 	log.Errorf("MntUrl is %s",MntUrl)
 
-	parent,writePipe := container.NewParentProcess(tty,RunUrl,MntUrl)
+	parent,writePipe := container.NewParentProcess(tty,RootUrl,MntUrl,volume)
 
 	if parent == nil {
 	    log.Errorf("New parent process error")
@@ -35,6 +35,7 @@ func Run(tty bool, cmdarry []string,res *subsystems.ResourceConfig) {
 	}
 
 	if err := parent.Start(); err != nil {
+		deleteWorkSpace(RootUrl, MntUrl, volume)
 		log.Errorf("Run parent.Start err:%v", err)
 		return
 	}
@@ -48,14 +49,15 @@ func Run(tty bool, cmdarry []string,res *subsystems.ResourceConfig) {
 	sendInitCommand(cmdarry,writePipe)
 	parent.Wait()
     
-	deleteWorkSpace(RunUrl,MntUrl)
+	deleteWorkSpace(RootUrl,MntUrl,volume)
 
 	os.Exit(-1) 
 }
 
-func deleteWorkSpace(RunUrl string,MntUrl string) {
+func deleteWorkSpace(RunUrl string,MntUrl string,volume string) {
 	deleteMountPoint(MntUrl)
 	deleteWirteLayer(RunUrl)
+	unmountVolume(MntUrl, volume)
 }
 
 func deleteWirteLayer(runUrl string ){
@@ -86,5 +88,23 @@ func sendInitCommand(arry []string,writePipe *os.File) {
 	}
 	if err := writePipe.Close(); err != nil {
 		log.Errorf("write pipe close err: %v", err)
+	}
+}
+
+func unmountVolume(mntUrl string, volume string) {
+	if volume == "" {
+		return
+	}
+	volumeUrls := strings.Split(volume, ":")
+	if len(volumeUrls) != 2 || volumeUrls[0] == "" || volumeUrls[1] == "" {
+		return
+	}
+
+	containerUrl := mntUrl + volumeUrls[1]
+	cmd := exec.Command("umount", containerUrl)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Errorf("ummount volume failed: %v", err)
 	}
 }

@@ -1,7 +1,7 @@
-
+见版本V2.0
 # 问题引入
 在4.1节中,我们已经实现了使用宿主机/root/busybox目录作为文件的根目录，但在容器内对文件的操作仍然会直接影响到宿主机的/root/busybox目录
-![alt text](/docs/res/image-1.png)
+![alt text](/WYFdocker/docs/res/image-1.png)
 
 # 目标实现
 **本节要进一步进行容器和镜像隔离，实现在容器中进行的操作不会对镜像产生任何影响的功能。**
@@ -20,7 +20,7 @@ UFS（Union File System）和 AUFS（Another Union File System）都是联合文件系统，它
 
 2.写时复制： 当容器中的进程试图进行写操作（例如创建、修改或删除文件）时，AUFS 会拦截这些操作，并在容器的文件系统中创建一个新的文件副本，而不是直接修改基础镜像的文件系统。这种写时复制的机制使得容器中的操作不会影响到基础镜像，同时保持了容器与基础镜像之间的分离。
 
-![alt text](/docs/res/images.jpg/)
+![alt text](/WYFdocker/docs/res/images.jpg/)
 
 >可以说容器是镜像的一个实例化运行。每个容器都是基于特定的镜像创建的，并且可以根据需要配置不同的参数。然而，容器
 >身并不是镜像，而是镜像的一个运行时实例。
@@ -47,8 +47,17 @@ NewWorkSpace函数是用来创建容器文件系统的，它包括CreateReadOnlyLayer、CreateWrite
 3.支持程度： 由于 OverlayFS 是 Linux 内核的一部分，因此在大多数现代 Linux 发行版中都有良好的支持。相比之下，AUFS 需要额外的内核模块，并且可能需要额外的配置和维护。
 稳定性和成熟度： 由于 OverlayFS 是 Linux 内核的一部分，因此在稳定性和成熟度方面可能更可靠一些。而 AUFS 虽然在一些场景下性能可能较好，但其稳定性和成熟度可能不如 OverlayFS。
 **总的来说，OverlayFS 是当前 Linux 容器环境下的首选文件系统，它性能良好且稳定可靠，而 AUFS 则是一个备选方案，适用于一些特定的场景和需求。**
+
+>**tips**
+1.aufs是如何区分可写层和只层的？
+答：在 AUFS 中，文件系统的层次结构是按照顺序堆叠的，最底层是基础镜像层，而最顶层是可写层。因此，AUFS 可以通过查看文件系统的层次结构来区分哪个文件是可写层，哪个是基础镜像层。通常，AUFS 会将最顶层标记为可写层，并在进行写操作时，将写操作作用在这个可写层上，而不影响底层的基础镜像层。(文件系统的层次结构是按照挂载的前后顺序确定的。在 AUFS 或其他联合文件系统中，挂载顺序决定了层次结构中每个层的位置)
+假如你在 AUFS 文件系统中按照顺序将 a, b, c, d 挂载到 /mnt，那么：
+最顶层（即最后挂载的那个层）是可写层。在这个例子中，d 会是可写层。
+其余的层都是只读层。因此，a, b, c 这三个会是只读层。
+在这样的配置中，所有写操作都会作用在可写层 d 上，而读取操作会按照从最顶层到最底层的顺序进行。如果一个文件在上层存在，它会遮挡掉下层的同名文件，这种机制叫做"覆盖" (overlay)。这让文件系统能够有效地组合多个只读层，同时在最顶层提供可写操作的灵活性。
+
 ## NewWorkSpace
-```
+```go
 func newWorkSpace(rootUrl string,MntUrl string) error{
 
     if err:=createReadOnlyLayer(rootUrl);err!=nil{
@@ -64,8 +73,10 @@ func newWorkSpace(rootUrl string,MntUrl string) error{
 }
 
 ```
+
 ## CreateReadOnlyLayer
-```
+
+```go
 func createReadOnlyLayer(rootUrl string)error{
     readlayer:=rootUrl+"busybox/"
 	readlayerpath,err:=pathExist(readlayer)
@@ -77,11 +88,11 @@ func createReadOnlyLayer(rootUrl string)error{
 	}
 	return nil
 }
-
 ```
+
 ## CreateWriteLayer
 
-```
+```go
 func createWriteLayer(rootUrl string)error{
     writelayer:=rootUrl+"writelayer/"
 	if err:=os.Mkdir(writelayer,0777);err!=nil{
@@ -92,7 +103,7 @@ func createWriteLayer(rootUrl string)error{
 ```
 
 ## CreateMountPoint
-```
+```go
 func createMountPoint(rootUrl string,MntUrl string)error{
 
 	if err := os.Mkdir(MntUrl, 0777); err != nil {
@@ -129,7 +140,7 @@ func createMountPoint(rootUrl string,MntUrl string)error{
 
 ```
 ## NewParentProcess
-```
+```go
 func NewParentProcess(tty bool,rootUrl string,MntUrl string)(*exec.Cmd,*os.File) {
 
 	readPipe,writePipe,err:=os.Pipe()
@@ -165,7 +176,7 @@ func NewParentProcess(tty bool,rootUrl string,MntUrl string)(*exec.Cmd,*os.File)
 }
 ```
 ## deleteWorkSpace
-```
+```go
 func Run(tty bool, cmdarry []string,res *subsystems.ResourceConfig) {
     
 	
@@ -247,8 +258,8 @@ func sendInitCommand(arry []string,writePipe *os.File) {
 运行容器，并创建一个文件，观察容器和镜像的文件系统是否发生变化。
 容器观察：
 
-![alt text](/docs/res/image2.png)
+![alt text](/WYFdocker/docs/res/image2.png)
 
 宿主机观察：
-![alt text](/docs/res/image.png)
+![alt text](/WYFdocker/docs/res/image.png)
 

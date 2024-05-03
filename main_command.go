@@ -34,6 +34,10 @@ var runCommand = cli.Command{
 			Name:  "cpushare",
 			Usage: "cpushare limit",
 		},
+		cli.StringFlag{
+		    Name: "v",
+			Usage: "volume",
+		},
 	},
 	Action: func(context *cli.Context) error {
 
@@ -55,8 +59,10 @@ var runCommand = cli.Command{
 		
 		tty := context.Bool("ti")
 		log.Infof("createTty %v", tty)
+
+		volume := context.String("v")
 		
-		CommandCallbackFunction.Run(tty, cmdArray,resConf)
+		CommandCallbackFunction.Run(tty, cmdArray,resConf,volume)
 		return nil
 	},
 }
@@ -72,5 +78,17 @@ var initCommand=cli.Command{
     
 	err:=container.Runcontainerinit()
 	return err
+	},
+}
+
+var CommitCommand=cli.Command{
+    Name:"commit",
+	Usage:"commit a container into image",
+	Action:func(context *cli.Context)error{
+	    if len(context.Args()) < 1 {
+			return fmt.Errorf("Missing container name")
+		}
+		imageName := context.Args().Get(0)
+		return container.CommitContainer(imageName)
 	},
 }
